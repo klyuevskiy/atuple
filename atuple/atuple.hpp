@@ -5,17 +5,69 @@
 template <typename ...Types>
 class atuple;
 
-/* TODO: защита от повторени€ ключевых полей */
-/* нужно как-то проверить что типы ключей не повтор€ютс€ */
+template <auto member_ptr>
+struct member_pointer
+{
+private:
+	template<typename StT, typename T>
+	static T __member_type(T StT::* ptr);
+
+	template<typename StT, typename T>
+	static StT __struct_type(T StT::* ptr);
+
+public:
+	using member_type = decltype(__member_type(member_ptr));
+	using struct_type = decltype(__struct_type(member_ptr));
+};
 
 template <typename KeyT, typename ValueT, typename ...Tail>
 class atuple<KeyT, ValueT, Tail...>
 {
-public:
+private:
+
+	/* check for unique keys */
+
+	template <typename SearchType, typename ...TypesForSearch>
+	struct type_contains;
+
+	template <typename SearchType, typename HeadKey, typename HeadValue, typename ...Tail>
+	struct type_contains<SearchType, HeadKey, HeadValue, Tail...>
+	{
+		static constexpr bool value =
+			std::is_same_v<SearchType, HeadKey> ||
+			type_contains<SearchType, Tail...>::value;
+	};
+
+	template<typename SearchType>
+	struct type_contains<SearchType>
+	{
+		static constexpr bool value = false;
+	};
+
+	template <typename ...Types>
+	struct is_unique_keys;
+
+	template <typename KeyT, typename ValueT, typename ...Tail>
+	struct is_unique_keys<KeyT, ValueT, Tail...>
+	{
+		static constexpr bool value =
+			is_unique_keys<Tail...>::value &&
+			!type_contains<KeyT, Tail...>::value;
+	};
+
+	template <>
+	struct is_unique_keys<>
+	{
+		static constexpr bool value = true;
+	};
+
+	static_assert(
+		is_unique_keys<KeyT, ValueT, Tail...>::value,
+		"atuple need to unique key types");
+
 	using key_type = KeyT;
 	using value_type = ValueT;
 
-private:
 	value_type head;
 	atuple<Tail...> tail;
 
@@ -85,7 +137,27 @@ public:
 			return getTail().get<FindKeyT>();
 	}
 
+	template <auto mem_ptr>
+	member_pointer<mem_ptr>::member_type & get()
+	{
+		return get<member_pointer<mem_ptr>>();
+	}
+
+	template <auto mem_ptr>
+	member_pointer<mem_ptr>::member_type const& get() const
+	{
+		return get<member_pointer<mem_ptr>>();
+	}
+
 public:
+	template <typename VValueT, typename ...VTail>
+	atuple(VValueT&& head, atuple<VTail...>&& tail)
+		: head(std::forward<VValueT>(head)),
+		  tail(std::forward<atuple<VTail...>>(tail))
+	{
+
+	}
+
 	template<typename ...Types>
 	atuple(atuple<Types...> const& other)
 		: head(other.get<key_type>()), tail(other)
@@ -199,3 +271,40 @@ public:
 		return *this;
 	}
 };
+
+template <typename HeadKeyT, typename HeadValueT, typename ...Tail>
+atuple<HeadKeyT, HeadValueT, Tail...>
+make_atuple(HeadValueT const & value, atuple<Tail...>&& tail)
+{
+	return atuple<HeadKeyT, HeadValueT, Tail...>(value, std::move(tail));
+}
+
+template <typename HeadKeyT, typename HeadValueT, typename ...Tail>
+atuple<HeadKeyT, HeadValueT, Tail...>
+make_atuple(HeadValueT && value, atuple<Tail...>&& tail)
+{
+	return atuple<HeadKeyT, HeadValueT, Tail...>(std::move(value), std::move(tail));
+}
+
+template <typename StructType, auto StructType::*ptr, auto StructType::*... params>
+auto make_atuple_from_struct(StructType const &st)
+{
+	auto tail = make_atuple_from_struct<StructType, params...>(st);
+	using member_type = std::remove_reference_t<decltype(std::declval<StructType>().*ptr)>;
+	return make_atuple<member_pointer<ptr>, member_type>(st.*ptr, std::move(tail));
+}
+
+template <typename StructType, auto StructType::* ptr, auto StructType::*... params>
+auto make_atuple_from_struct(StructType && st)
+{
+	auto member = std::move(st.*ptr);
+	auto tail = make_atuple_from_struct<StructType, params...>(std::move(st));
+	using member_type = std::remove_reference_t<decltype(std::declval<StructType>().*ptr)>;
+	return make_atuple<member_pointer<ptr>, member_type>(std::move(member), std::move(tail));
+}
+
+template <typename StructType>
+auto make_atuple_from_struct(StructType const& st)
+{
+	return atuple<>();
+}
