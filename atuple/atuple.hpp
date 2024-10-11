@@ -8,14 +8,13 @@ class atuple;
 template <auto member_ptr>
 struct member_pointer
 {
-private:
+public:
 	template<typename StT, typename T>
 	static T __member_type(T StT::* ptr);
 
 	template<typename StT, typename T>
 	static StT __struct_type(T StT::* ptr);
 
-public:
 	using member_type = decltype(__member_type(member_ptr));
 	using struct_type = decltype(__struct_type(member_ptr));
 };
@@ -172,21 +171,30 @@ public:
 
 	}
 
-	/* TODO: copy and swap */
+	template <typename Tup>
+	void swap(Tup & t) noexcept
+	{
+		std::swap(head, t.get<KeyT>());
+		getTail().swap(t);
+	}
+
 	template <typename ...Types>
 	auto& operator=(atuple<Types...> const& other)
 	{
-		head = other.get<key_type>();
-		tail = other;
+		atuple<key_type, value_type, Tail...> tmp(other);
+		this->swap(tmp);
+		//head = other.get<key_type>();
+		//tail = other;
 		return *this;
 	}
 
-	/* TODO: move and swap */
 	template <typename ...Types>
 	auto& operator=(atuple<Types...>&& other)
 	{
-		head = std::move(other.get<key_type>());
-		tail = std::move(other);
+		atuple<key_type, value_type, Tail...> tmp(std::move(other));
+		this->swap(tmp);
+		//head = std::move(other.get<key_type>());
+		//tail = std::move(other);
 		return *this;
 	}
 
@@ -259,6 +267,12 @@ public:
 
 	}
 
+	template <typename Tup>
+	void swap(Tup & t) noexcept
+	{
+
+	}
+
 	template <typename ...Types>
 	auto& operator=(atuple<Types...> const& other)
 	{
@@ -289,22 +303,46 @@ make_atuple(HeadValueT && value, atuple<Tail...>&& tail)
 template <typename StructType, auto StructType::*ptr, auto StructType::*... params>
 auto make_atuple_from_struct(StructType const &st)
 {
-	auto tail = make_atuple_from_struct<StructType, params...>(st);
 	using member_type = std::remove_reference_t<decltype(std::declval<StructType>().*ptr)>;
-	return make_atuple<member_pointer<ptr>, member_type>(st.*ptr, std::move(tail));
+	return make_atuple<member_pointer<ptr>, member_type>(
+		st.*ptr,
+		make_atuple_from_struct<StructType, params...>(st));
 }
 
 template <typename StructType, auto StructType::* ptr, auto StructType::*... params>
 auto make_atuple_from_struct(StructType && st)
 {
-	auto member = std::move(st.*ptr);
-	auto tail = make_atuple_from_struct<StructType, params...>(std::move(st));
 	using member_type = std::remove_reference_t<decltype(std::declval<StructType>().*ptr)>;
-	return make_atuple<member_pointer<ptr>, member_type>(std::move(member), std::move(tail));
+	return make_atuple<member_pointer<ptr>, member_type>(
+		std::move(st.*ptr),
+		make_atuple_from_struct<StructType, params...>(std::move(st))
+	);
 }
 
 template <typename StructType>
 auto make_atuple_from_struct(StructType const& st)
 {
 	return atuple<>();
+}
+
+template <typename StructType>
+auto make_atuple_from_struct(StructType && st)
+{
+	return atuple<>();
+}
+
+template<typename StructType>
+auto make_atuple_from_struct()
+{
+	return atuple<>();
+}
+
+template<typename StructType, auto StructType::*ptr, auto ...params>
+auto make_atuple_from_struct()
+{
+	using member_type = std::remove_reference_t<decltype(std::declval<StructType>().*ptr)>;
+	return make_atuple<member_pointer<ptr>, member_type>(
+		member_type{},
+		make_atuple_from_struct<StructType, params...>()
+	);
 }

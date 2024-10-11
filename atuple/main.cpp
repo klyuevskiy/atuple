@@ -53,17 +53,16 @@ struct OtherStruct
 	int age;
 };
 
+
 int main()
 {
-	//auto str = Foo_<MyStruct, &MyStruct::name_>();
-	auto myTup = make_atuple_from_struct<MyStruct, &MyStruct::name_, &MyStruct::family_>(myStruct);
-	auto myTup2 = myTup;
-	myTup2.get<&MyStruct::name_>() = "Ilya";
-	print_atuple(myTup);
-	print_atuple(myTup2);
-
-	auto other = myStruct;
-	auto myTup3 = make_atuple_from_struct< MyStruct, &MyStruct::name_, &MyStruct::family_>(std::move(other));
-	print_atuple(myTup3);
-	std::cout << other.name_ << " " << other.family_ << std::endl;
+	//foo(myStruct);
+	//foo(std::move(myStruct));
+	//foo<MyStruct>(myStruct);
+	//auto t = make_atuple_from_struct<MyStruct, &MyStruct::name_, &MyStruct::family_, &MyStruct::age_>(std::move( myStruct));
+	auto t = make_atuple_from_struct<MyStruct, &MyStruct::name_, &MyStruct::age_, &MyStruct::male_>(std::move(myStruct));
+	std::cout << t.get<&MyStruct::name_>();
+	//print_atuple(t);
+	//std::cout << typeid(&MyStruct::name_).name() << std::endl;
+	//std::cout << myStruct.name_ << myStruct.family_ << static_cast<int>(myStruct.age_);
 }
