@@ -12,7 +12,7 @@ namespace atupletests
 
 		TEST_METHOD(TestGet)
 		{
-			atuple<int, int, long, std::string, std::string, const char *> t;
+			atuple<int, int, long, std::string, std::string, const char*> t;
 			t.get<int>() = 123;
 			t.get<long>() = "string";
 			t.get<std::string>() = "const char *";
@@ -76,7 +76,7 @@ namespace atupletests
 
 			Assert::IsTrue(t1 == t2);
 			Assert::IsFalse(t1 != t2);
-			
+
 			t2.get<int>() = 456;
 			Assert::IsFalse(t1 == t2);
 			Assert::IsTrue(t1 != t2);
@@ -194,6 +194,168 @@ namespace atupletests
 			/* str is moved to t1 */
 			Assert::AreNotEqual(t2.get<int>(), str);
 			Assert::AreNotEqual(t2.get<float>(), str);
+		}
+
+		TEST_METHOD(TestConstructByLvalueStruct)
+		{
+			struct MyStruct
+			{
+				std::string name;
+				int age;
+			};
+
+			MyStruct my{ "Ilya", 22 };
+
+			auto t1 = make_atuple_from_struct<MyStruct, &MyStruct::name, &MyStruct::age>(my);
+			Assert::IsTrue(t1.get<&MyStruct::name>() == my.name);
+			Assert::IsTrue(t1.get<&MyStruct::age>() == my.age);
+
+			auto t2 = make_atuple_from_struct<MyStruct, &MyStruct::name>(my);
+			Assert::IsTrue(t1.get<&MyStruct::name>() == my.name);
+
+			auto t3 = make_atuple_from_struct<MyStruct, &MyStruct::age>(my);
+			Assert::IsTrue(t1.get<&MyStruct::age>() == my.age);
+
+			auto t4 = make_atuple_from_struct<MyStruct>(my);
+			Assert::IsTrue(atuple<>() == t4);
+		}
+
+		TEST_METHOD(TestConstructByRvalueStruct)
+		{
+			struct MyStruct
+			{
+				std::string name;
+				int age;
+			};
+
+			MyStruct my{ "Ilya", 22 };
+			MyStruct to_move = my;
+
+			auto t1 = make_atuple_from_struct<MyStruct, &MyStruct::name, &MyStruct::age>(
+				std::move(to_move));
+			Assert::IsTrue(t1.get<&MyStruct::name>() == my.name);
+			Assert::IsTrue(t1.get<&MyStruct::age>() == my.age);
+			Assert::IsTrue(to_move.name == ""); /* moved */
+
+			to_move = my;
+			auto t2 = make_atuple_from_struct<MyStruct, &MyStruct::name>(std::move(to_move));
+			Assert::IsTrue(t1.get<&MyStruct::name>() == my.name);
+			Assert::IsTrue(to_move.name == ""); /* moved */
+
+			to_move = my;
+			auto t3 = make_atuple_from_struct<MyStruct, &MyStruct::age>(std::move(to_move));
+			Assert::IsTrue(t1.get<&MyStruct::age>() == my.age);
+			Assert::IsFalse(to_move.name == ""); /* not moved */
+
+			to_move = my;
+			auto t4 = make_atuple_from_struct<MyStruct>(std::move(to_move));
+			Assert::IsTrue(atuple<>() == t4);
+			Assert::IsFalse(to_move.name == ""); /* not moved */
+		}
+
+		TEST_METHOD(TestConstructByEmptyStruct)
+		{
+			struct MyStruct
+			{
+				std::string name;
+				int age;
+			};
+
+			std::string empty_s{};
+			int empty_int{};
+
+			auto t1 = make_atuple_from_struct<MyStruct, &MyStruct::name, &MyStruct::age>();
+			Assert::IsTrue(t1.get<&MyStruct::name>() == empty_s);
+			Assert::IsTrue(t1.get<&MyStruct::age>() == empty_int);
+
+			auto t2 = make_atuple_from_struct<MyStruct, &MyStruct::name>();
+			Assert::IsTrue(t1.get<&MyStruct::name>() == empty_s);
+
+			auto t3 = make_atuple_from_struct<MyStruct, &MyStruct::age>();
+			Assert::IsTrue(t1.get<&MyStruct::age>() == empty_int);
+
+			auto t4 = make_atuple_from_struct<MyStruct>();
+			Assert::IsTrue(atuple<>() == t4);
+		}
+
+		TEST_METHOD(TestCompareByValues)
+		{
+			struct MyStruct
+			{
+				std::string name;
+				int age;
+			};
+
+			MyStruct my1{ "Ilya", 22 };
+			MyStruct my2{ "Ilya", 21 };
+
+			auto t1 = make_atuple_from_struct<MyStruct, &MyStruct::name, &MyStruct::age>(my1);
+			auto t2 = make_atuple_from_struct<MyStruct, &MyStruct::name, &MyStruct::age>(my2);
+
+			Assert::IsTrue(!atuple_less<&MyStruct::name, &MyStruct::age>(t1, t2));
+			Assert::IsTrue(atuple_greater<&MyStruct::name, &MyStruct::age>(t1, t2));
+			Assert::IsTrue(!atuple_equal<&MyStruct::name, &MyStruct::age>(t1, t2));
+
+			Assert::IsTrue(!atuple_less<&MyStruct::age>(t1, t2));
+			Assert::IsTrue(atuple_greater<&MyStruct::age>(t1, t2));
+			Assert::IsTrue(!atuple_equal<&MyStruct::age>(t1, t2));
+
+			Assert::IsTrue(!atuple_less<&MyStruct::name>(t1, t2));
+			Assert::IsTrue(!atuple_greater<&MyStruct::name>(t1, t2));
+			Assert::IsTrue(atuple_equal<&MyStruct::name>(t1, t2));
+
+			t2.get<&MyStruct::name>() += "a";
+			t2.get<&MyStruct::age>() = t1.get<&MyStruct::age>();
+
+			Assert::IsTrue(atuple_less<&MyStruct::name, &MyStruct::age>(t1, t2));
+			Assert::IsTrue(!atuple_greater<&MyStruct::name, &MyStruct::age>(t1, t2));
+			Assert::IsTrue(!atuple_equal<&MyStruct::name, &MyStruct::age>(t1, t2));
+
+			Assert::IsTrue(atuple_less<&MyStruct::name>(t1, t2));
+			Assert::IsTrue(!atuple_greater<&MyStruct::name>(t1, t2));
+			Assert::IsTrue(!atuple_equal<&MyStruct::name>(t1, t2));
+
+			Assert::IsTrue(atuple_less<&MyStruct::name, &MyStruct::age>(t1, t2));
+			Assert::IsTrue(!atuple_greater<&MyStruct::name, &MyStruct::age>(t1, t2));
+			Assert::IsTrue(!atuple_equal<&MyStruct::name, &MyStruct::age>(t1, t2));
+		}
+
+		TEST_METHOD(TestCompareByTypes)
+		{
+			atuple<int, int, float, std::string> t1;
+			atuple<int, std::uint8_t, float, std::string> t2;
+
+			t1.get<int>() = 1;
+			t2.get<int>() = 1;
+			t1.get<float>() = "Ilya";
+			t2.get<float>() = "Ilya";
+
+			Assert::IsTrue(atuple_equal<int, float>(t1, t2));
+
+			t2.get<int>() = 2;
+			Assert::IsTrue(atuple_less<int, float>(t1, t2));
+			Assert::IsTrue(atuple_less<int>(t1, t2));
+			Assert::IsTrue(atuple_equal<float>(t1, t2));
+		}
+
+		TEST_METHOD(TestTruncateCopy)
+		{
+			atuple<int, std::string> t1;
+			atuple<int, std::string, float, std::string> t2;
+
+			t2.get<int>() = "123";
+			t2.get<float>() = "12.3";
+
+			t1 = std::move(t2);
+
+			Assert::IsTrue("123" == t1.get<int>());
+			Assert::IsTrue("" == t2.get<int>());
+			Assert::IsTrue("12.3" == t2.get<float>());
+
+			atuple<float, std::string> t3 = std::move(t2);
+
+			Assert::IsTrue("12.3" == t3.get<float>());
+			Assert::IsTrue("" == t2.get<float>());
 		}
 	};
 }

@@ -42,34 +42,62 @@ struct Mystr
 	Mystr(std::string &str) : str(str) {}
 };
 
-template <typename StrT, auto StrT::*ptr>
-auto Foo_()
-{
-	return decltype(std::declval<StrT>().*ptr){};
-}
-
 struct OtherStruct
 {
 	int age;
 };
 
-template <typename T, typename U>
-void foo(T t, U u)
+struct atuple_weak_ordering_policy
 {
-	std::cout << t << std::endl;
-	std::cout << u << std::endl;
-}
+	template <typename T, typename U>
+	static std::weak_ordering compare(T const& first, U const& second)
+	{
+		return first <=> second;
+	}
+
+	static std::weak_ordering combine(std::weak_ordering first, std::weak_ordering second)
+	{
+		if (first != std::partial_ordering::equivalent)
+			return first;
+		return second;
+	}
+
+	static constexpr std::weak_ordering default_value = std::weak_ordering::equivalent;
+};
 
 int main()
 {
-	struct MyStruct
+	using typ_type = atuple<int, std::string>;
+
+	typ_type t;
+	t.get<int>() = "Ilya";
+
+	t = t;
+
+	print_atuple(t);
+
+	/*struct MyStruct
 	{
 		std::string name;
 		int age;
+
+		auto operator <=>(MyStruct const& other) const = default;
 	};
 
-	MyStruct my{ "Ilya", 22 };
+	MyStruct my1{ "Ilya", 22 };
+	MyStruct my2{ "Ilya", 21 };
 
-	auto t = make_atuple_from_struct<&MyStruct::name, &MyStruct::age>(my);
-	print_atuple(t);
+	auto t1 = make_atuple_from_struct<MyStruct, &MyStruct::name, &MyStruct::age>(my1);
+	auto t2 = make_atuple_from_struct<MyStruct, &MyStruct::name, &MyStruct::age>(my2);
+
+	std::cout << atuple_greater<&MyStruct::name, &MyStruct::age>(t1, t2) << std::endl;
+
+	auto cmp_res = atuple_comparator<
+		atuple_weak_ordering_policy,
+		member_pointer<&MyStruct::name>,
+		member_pointer<&MyStruct::age>
+	>::do_compare(t1, t2);
+
+	if (cmp_res == std::partial_ordering::greater)
+		std::cout << "greater" << std::endl;*/
 }
