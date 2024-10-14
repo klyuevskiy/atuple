@@ -6,7 +6,7 @@
 template <typename KeyT, typename ValueT, typename ...Types>
 void __print_atuple(atuple<KeyT, ValueT, Types...> const& t)
 {
-	std::cout << typeid(KeyT).name() << " : " << t.get<KeyT>() << std::endl;
+	std::cout << typeid(KeyT).name() << " : " << t. template get<KeyT>() << std::endl;
 	__print_atuple(t.getTail());
 }
 
@@ -67,16 +67,7 @@ struct atuple_weak_ordering_policy
 
 int main()
 {
-	using typ_type = atuple<int, std::string>;
-
-	typ_type t;
-	t.get<int>() = "Ilya";
-
-	t = t;
-
-	print_atuple(t);
-
-	/*struct MyStruct
+	struct MyStruct
 	{
 		std::string name;
 		int age;
@@ -99,5 +90,5 @@ int main()
 	>::do_compare(t1, t2);
 
 	if (cmp_res == std::partial_ordering::greater)
-		std::cout << "greater" << std::endl;*/
+		std::cout << "greater" << std::endl;
 }
