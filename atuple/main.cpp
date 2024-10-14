@@ -53,16 +53,23 @@ struct OtherStruct
 	int age;
 };
 
+template <typename T, typename U>
+void foo(T t, U u)
+{
+	std::cout << t << std::endl;
+	std::cout << u << std::endl;
+}
 
 int main()
 {
-	//foo(myStruct);
-	//foo(std::move(myStruct));
-	//foo<MyStruct>(myStruct);
-	//auto t = make_atuple_from_struct<MyStruct, &MyStruct::name_, &MyStruct::family_, &MyStruct::age_>(std::move( myStruct));
-	auto t = make_atuple_from_struct<MyStruct, &MyStruct::name_, &MyStruct::age_, &MyStruct::male_>(std::move(myStruct));
-	std::cout << t.get<&MyStruct::name_>();
-	//print_atuple(t);
-	//std::cout << typeid(&MyStruct::name_).name() << std::endl;
-	//std::cout << myStruct.name_ << myStruct.family_ << static_cast<int>(myStruct.age_);
+	struct MyStruct
+	{
+		std::string name;
+		int age;
+	};
+
+	MyStruct my{ "Ilya", 22 };
+
+	auto t = make_atuple_from_struct<&MyStruct::name, &MyStruct::age>(my);
+	print_atuple(t);
 }

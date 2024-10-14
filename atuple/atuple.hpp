@@ -1,6 +1,7 @@
 #pragma once
 
 #include <type_traits>
+#include <compare>
 
 template <typename ...Types>
 class atuple;
@@ -29,12 +30,12 @@ private:
 	template <typename SearchType, typename ...TypesForSearch>
 	struct type_contains;
 
-	template <typename SearchType, typename HeadKey, typename HeadValue, typename ...Tail>
-	struct type_contains<SearchType, HeadKey, HeadValue, Tail...>
+	template <typename SearchType, typename VHeadKey, typename VHeadValue, typename ...VTail>
+	struct type_contains<SearchType, VHeadKey, VHeadValue, VTail...>
 	{
 		static constexpr bool value =
-			std::is_same_v<SearchType, HeadKey> ||
-			type_contains<SearchType, Tail...>::value;
+			std::is_same_v<SearchType, VHeadKey> ||
+			type_contains<SearchType, VTail...>::value;
 	};
 
 	template<typename SearchType>
@@ -46,12 +47,12 @@ private:
 	template <typename ...Types>
 	struct is_unique_keys;
 
-	template <typename KeyT, typename ValueT, typename ...Tail>
-	struct is_unique_keys<KeyT, ValueT, Tail...>
+	template <typename VHeadKey, typename VHeadValue, typename ...VTail>
+	struct is_unique_keys<VHeadKey, VHeadValue, VTail...>
 	{
 		static constexpr bool value =
-			is_unique_keys<Tail...>::value &&
-			!type_contains<KeyT, Tail...>::value;
+			is_unique_keys<VTail...>::value &&
+			!type_contains<VHeadKey, VTail...>::value;
 	};
 
 	template <>
@@ -111,14 +112,14 @@ public:
 	{
 		if constexpr (std::is_same_v<key_type, FindKeyT>)
 			return getHead();
-		else if constexpr (sizeof...(Tail) == 0)
-		{
-			static_assert(false, "type not found in atuple");
-			int i{};
-			return i;
-		}
+		 //else if constexpr (sizeof...(Tail) == 0)
+		 //{
+		 //	static_assert(false, "type not found in atuple");
+		 //	int i{};
+		 //	return i;
+		 //}
 		else
-			return getTail().get<FindKeyT>();
+			return getTail(). template get<FindKeyT>();
 	}
 
 	template <typename FindKeyT>
@@ -126,24 +127,24 @@ public:
 	{
 		if constexpr (std::is_same_v<key_type, FindKeyT>)
 			return getHead();
-		else if constexpr (sizeof...(Tail) == 0)
-		{
-			static_assert(false, "type not found in atuple");
-			int i{};
-			return i;
-		}
+		 //else if constexpr (sizeof...(Tail) == 0)
+		 //{
+		 //	static_assert(false, "type not found in atuple");
+		 //	int i{};
+		 //	return i;
+		 //}
 		else
-			return getTail().get<FindKeyT>();
+			return getTail(). template get<FindKeyT>();
 	}
 
 	template <auto mem_ptr>
-	member_pointer<mem_ptr>::member_type & get()
+	typename member_pointer<mem_ptr>::member_type& get()
 	{
 		return get<member_pointer<mem_ptr>>();
 	}
 
 	template <auto mem_ptr>
-	member_pointer<mem_ptr>::member_type const& get() const
+	typename member_pointer<mem_ptr>::member_type const& get() const
 	{
 		return get<member_pointer<mem_ptr>>();
 	}
@@ -152,29 +153,29 @@ public:
 	template <typename VValueT, typename ...VTail>
 	atuple(VValueT&& head, atuple<VTail...>&& tail)
 		: head(std::forward<VValueT>(head)),
-		  tail(std::forward<atuple<VTail...>>(tail))
+		tail(std::forward<atuple<VTail...>>(tail))
 	{
 
 	}
 
 	template<typename ...Types>
 	atuple(atuple<Types...> const& other)
-		: head(other.get<key_type>()), tail(other)
+		: head(other. template get<key_type>()), tail(other)
 	{
 
 	}
 
 	template<typename ...Types>
-	atuple(atuple<Types...> && other)
-		: head(std::move(other.get<key_type>())), tail(std::move(other))
+	atuple(atuple<Types...>&& other)
+		: head(std::move(other. template get<key_type>())), tail(std::move(other))
 	{
 
 	}
 
 	template <typename Tup>
-	void swap(Tup & t) noexcept
+	void swap(Tup& t) noexcept
 	{
-		std::swap(head, t.get<KeyT>());
+		std::swap(head, t. template get<KeyT>());
 		getTail().swap(t);
 	}
 
@@ -198,20 +199,26 @@ public:
 		return *this;
 	}
 
+	template <typename Atuple>
+	void fill_from(Atuple&& other)
+	{
+		*this = std::forward<Atuple>(other);
+	}
+
 private:
-	
+
 	/* == operation: compare value by value by first tuple keys */
 	template <typename Tup1, typename Tup2>
 	struct equal_op;
 
-	template <typename KeyT, typename ValueT, typename ...Tail, typename ...Types>
-	struct equal_op<atuple<KeyT, ValueT, Tail...>, atuple<Types...>>
+	template <typename VHeadKeyT, typename VHeadValueT, typename ...VTail, typename ...Types>
+	struct equal_op<atuple<VHeadKeyT, VHeadValueT, VTail...>, atuple<Types...>>
 	{
-		static bool apply(atuple<KeyT, ValueT, Tail...> const& first, atuple<Types...> const& second)
+		static bool apply(atuple<VHeadKeyT, VHeadValueT, VTail...> const& first, atuple<Types...> const& second)
 		{
 			return
-				first.getHead() == second.get<KeyT>() &&
-				equal_op<atuple<Tail...>, atuple<Types...>>::apply(first.getTail(), second);
+				first.getHead() == second. template get<VHeadKeyT>() &&
+				equal_op<atuple<VTail...>, atuple<Types...>>::apply(first.getTail(), second);
 		}
 	};
 
@@ -232,7 +239,7 @@ template <typename ...Types1, typename ...Types2>
 bool operator==(atuple<Types1...> const& first, atuple<Types2...> const& second)
 {
 	static_assert(sizeof...(Types1) == sizeof...(Types2), "cannot compare atuple of different sizes");
-	return atuple<Types1...>::equal_op<atuple<Types1...>, atuple<Types2...>>::apply(first, second);
+	return atuple<Types1...>:: template equal_op<atuple<Types1...>, atuple<Types2...>>::apply(first, second);
 }
 
 bool operator==(atuple<> const& first, atuple<> const& second)
@@ -262,13 +269,13 @@ public:
 	}
 
 	template<typename ...Types>
-	atuple(atuple<Types...> && other)
+	atuple(atuple<Types...>&& other)
 	{
 
 	}
 
 	template <typename Tup>
-	void swap(Tup & t) noexcept
+	void swap(Tup& t) noexcept
 	{
 
 	}
@@ -288,31 +295,31 @@ public:
 
 template <typename HeadKeyT, typename HeadValueT, typename ...Tail>
 atuple<HeadKeyT, HeadValueT, Tail...>
-make_atuple(HeadValueT const & value, atuple<Tail...>&& tail)
+make_atuple(HeadValueT const& value, atuple<Tail...>&& tail)
 {
 	return atuple<HeadKeyT, HeadValueT, Tail...>(value, std::move(tail));
 }
 
 template <typename HeadKeyT, typename HeadValueT, typename ...Tail>
 atuple<HeadKeyT, HeadValueT, Tail...>
-make_atuple(HeadValueT && value, atuple<Tail...>&& tail)
+make_atuple(HeadValueT&& value, atuple<Tail...>&& tail)
 {
 	return atuple<HeadKeyT, HeadValueT, Tail...>(std::move(value), std::move(tail));
 }
 
-template <typename StructType, auto StructType::*ptr, auto StructType::*... params>
-auto make_atuple_from_struct(StructType const &st)
+template <typename StructType, auto StructType::* ptr, auto StructType::*... params>
+auto make_atuple_from_struct(StructType const& st)
 {
-	using member_type = std::remove_reference_t<decltype(std::declval<StructType>().*ptr)>;
+	using member_type = std::remove_reference_t<decltype(st.*ptr)>;
 	return make_atuple<member_pointer<ptr>, member_type>(
 		st.*ptr,
 		make_atuple_from_struct<StructType, params...>(st));
 }
 
 template <typename StructType, auto StructType::* ptr, auto StructType::*... params>
-auto make_atuple_from_struct(StructType && st)
+auto make_atuple_from_struct(StructType&& st)
 {
-	using member_type = std::remove_reference_t<decltype(std::declval<StructType>().*ptr)>;
+	using member_type = std::remove_reference_t<decltype(st.*ptr)>;
 	return make_atuple<member_pointer<ptr>, member_type>(
 		std::move(st.*ptr),
 		make_atuple_from_struct<StructType, params...>(std::move(st))
@@ -326,7 +333,7 @@ auto make_atuple_from_struct(StructType const& st)
 }
 
 template <typename StructType>
-auto make_atuple_from_struct(StructType && st)
+auto make_atuple_from_struct(StructType&& st)
 {
 	return atuple<>();
 }
@@ -337,7 +344,7 @@ auto make_atuple_from_struct()
 	return atuple<>();
 }
 
-template<typename StructType, auto StructType::*ptr, auto ...params>
+template<typename StructType, auto StructType::* ptr, auto ...params>
 auto make_atuple_from_struct()
 {
 	using member_type = std::remove_reference_t<decltype(std::declval<StructType>().*ptr)>;
@@ -345,4 +352,73 @@ auto make_atuple_from_struct()
 		member_type{},
 		make_atuple_from_struct<StructType, params...>()
 	);
+}
+
+template <template <typename, typename> typename ComparePolicy, typename ...Types>
+struct atuple_comparator;
+
+template <template <typename, typename> typename ComparePolicy, typename HeadKey, typename ...Types>
+struct atuple_comparator<ComparePolicy, HeadKey, Types...>
+{
+	template <typename Atuple1, typename Atuple2>
+	static bool do_compare(Atuple1 const& first, Atuple2 const& second)
+	{
+		auto const& left = first.template get<HeadKey>();
+		auto const& right = second.template get<HeadKey>();
+		return
+			ComparePolicy<decltype(left), decltype(right)>::compare(left, right) ||
+			atuple_comparator<ComparePolicy, Types...>:: template do_compare(first, second);
+	}
+};
+
+template <template <typename, typename> typename ComparePolicy>
+struct atuple_comparator<ComparePolicy>
+{
+	template <typename Atuple1, typename Atuple2>
+	static bool do_compare(Atuple1 const& first, Atuple2 const& second)
+	{
+		return false;
+	}
+};
+
+template <typename T, typename U>
+struct atuple_less_policy
+{
+	static bool compare(T const& first, U const& second)
+	{
+		return first < second;
+	}
+};
+
+template <typename T, typename U>
+struct atuple_greater_policy
+{
+	static bool compare(T const& first, U const& second)
+	{
+		return first > second;
+	}
+};
+
+template <typename ...Types>
+bool atuple_less(auto const& t1, auto const& t2)
+{
+	return atuple_comparator<atuple_less_policy, Types...>::do_compare(t1, t2);
+}
+
+template <auto ...Ptrs>
+bool atuple_less(auto const& t1, auto const& t2)
+{
+	return atuple_less<member_pointer<Ptrs>...>(t1, t2);
+}
+
+template <typename ...Types>
+bool atuple_greater(auto const& t1, auto const& t2)
+{
+	return atuple_comparator<atuple_greater_policy, Types...>::do_compare(t1, t2);
+}
+
+template <auto ...Ptrs>
+bool atuple_greater(auto const& t1, auto const& t2)
+{
+	return atuple_greater<member_pointer<Ptrs>...>(t1, t2);
 }
