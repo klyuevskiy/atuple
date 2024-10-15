@@ -73,7 +73,6 @@ private:
 		is_unique_keys<HeadKeyT, HeadValueT, Tail...>::value,
 		"atuple need to unique key types");
 
-public:
 	HeadValueT& getHead()
 	{
 		return head;
@@ -94,6 +93,8 @@ public:
 		return tail;
 	}
 
+public:
+
 	atuple()
 		: head(HeadValueT{}), tail(atuple<Tail...>{})
 	{
@@ -110,9 +111,6 @@ public:
 
 	~atuple() {}
 
-private:
-
-public:
 	template <typename FindKeyT>
 	auto& get()
 	{
@@ -143,7 +141,6 @@ public:
 		return this-> template get<member_pointer<mem_ptr>>();
 	}
 
-public:
 	template<typename Atuple>
 	atuple(Atuple const& other)
 		: head(other. template get<HeadKeyT>()), tail(other)
