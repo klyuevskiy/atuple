@@ -299,68 +299,111 @@ public:
 	}
 };
 
-/* auxiliary function for deduction arguments */
-template <typename HeadKeyT, typename HeadValueT, typename ...Tail>
-atuple<HeadKeyT, HeadValueT, Tail...>
-constexpr make_atuple(HeadValueT const& value, atuple<Tail...>&& tail)
+/* aux struct for deduction atuple type by member pointers */
+template <auto ...ptrs>
+struct atuple_type_from_ptrs;
+
+template <auto ptr, auto ...ptrs>
+struct atuple_type_from_ptrs<ptr, ptrs...>
 {
-	return atuple<HeadKeyT, HeadValueT, Tail...>(value, std::move(tail));
+private:
+	template <typename HeadKey, typename HeadValue, typename Atuple>
+	struct atuple_add_pair;
+
+	template <typename HeadKey, typename HeadValue, typename ...Types>
+	struct atuple_add_pair<HeadKey, HeadValue, atuple<Types...>>
+	{
+		using type = atuple<HeadKey, HeadValue, Types... >;
+	};
+
+	using key_type = member_pointer<ptr>;
+	using value_type = key_type::member_type;
+	using tail = atuple_type_from_ptrs<ptrs...>::type;
+public:
+	using type = atuple_add_pair<key_type, value_type, tail>::type;
+};
+
+template <>
+struct atuple_type_from_ptrs<>
+{
+	using type = atuple<>;
+};
+
+template <auto ...ptrs>
+struct is_pointers_of_single_struct;
+
+template <auto ptr1, auto ptr2, auto ...ptrs>
+struct is_pointers_of_single_struct<ptr1, ptr2, ptrs...>
+{
+	constexpr static bool value = std::is_same_v<
+		typename member_pointer<ptr1>::struct_type,
+		typename member_pointer<ptr2>::struct_type
+	> && is_pointers_of_single_struct<ptr2, ptrs...>::value;
+};
+
+template <auto ptr>
+struct is_pointers_of_single_struct<ptr>
+{
+	constexpr static bool value = true;
+};
+
+template <>
+struct is_pointers_of_single_struct<>
+{
+	constexpr static bool value = true;
+};
+
+constexpr atuple<> atuple_from_struct(auto const& st) noexcept
+{
+	return atuple<>{};
 }
 
-template <typename StructType>
-constexpr auto make_atuple_from_struct(StructType const& st)
+template <auto ptr, auto ... ptrs>
+constexpr auto atuple_from_struct(auto const& st)
+	requires
+		is_pointers_of_single_struct<ptr, ptrs...>::value &&
+		std::is_lvalue_reference_v<decltype(st)>
 {
-	return atuple<>();
-}
-
-template <typename StructType, auto StructType::* ptr, auto StructType::*... params>
-constexpr auto make_atuple_from_struct(StructType const& st)
-{
-	using member_type = std::remove_cvref_t<decltype(st.*ptr)>;
-	return make_atuple<member_pointer<ptr>, member_type>(
+	return typename atuple_type_from_ptrs<ptr, ptrs...>::type(
 		st.*ptr,
-		make_atuple_from_struct<StructType, params...>(st)
+		atuple_from_struct<ptrs...>(st)
 	);
 }
 
-/* auxiliary function for deduction arguments */
-template <typename HeadKeyT, typename HeadValueT, typename ...Tail>
-atuple<HeadKeyT, HeadValueT, Tail...>
-constexpr make_atuple(HeadValueT&& value, atuple<Tail...>&& tail)
+constexpr atuple<> atuple_from_struct(auto&& st) noexcept
 {
-	return atuple<HeadKeyT, HeadValueT, Tail...>(std::move(value), std::move(tail));
+	return atuple<>{};
 }
 
-
-template <typename StructType>
-constexpr auto make_atuple_from_struct(StructType&& st)
+template <auto ptr, auto ...ptrs>
+constexpr auto atuple_from_struct(auto&& st)
+	requires
+		is_pointers_of_single_struct<ptr, ptrs...>::value &&
+		std::is_rvalue_reference_v<decltype(st)>
 {
-	return atuple<>();
-}
-
-template <typename StructType, auto StructType::* ptr, auto StructType::*... params>
-constexpr auto make_atuple_from_struct(StructType&& st)
-{
-	using member_type = std::remove_cvref_t<decltype(st.*ptr)>;
-	return make_atuple<member_pointer<ptr>, member_type>(
+	return typename atuple_type_from_ptrs<ptr, ptrs...>::type(
 		std::move(st.*ptr),
-		make_atuple_from_struct<StructType, params...>(std::move(st))
+		atuple_from_struct<ptrs...>(std::move(st))
 	);
 }
 
-template<typename StructType>
-constexpr auto make_atuple_from_struct()
+template <auto ...ptrs>
+	requires requires() {
+	requires sizeof...(ptrs) == 0;
+}
+constexpr atuple<> atuple_from_struct() noexcept
 {
-	return atuple<>();
+	return atuple<>{};
 }
 
-template<typename StructType, auto StructType::* ptr, auto ...params>
-constexpr auto make_atuple_from_struct()
+template<auto ptr, auto ...ptrs>
+requires is_pointers_of_single_struct<ptr, ptrs...>::value
+constexpr typename atuple_type_from_ptrs<ptr, ptrs...>::type atuple_from_struct()
 {
-	using member_type = std::remove_cvref_t<decltype(std::declval<StructType>().*ptr)>;
-	return make_atuple<member_pointer<ptr>, member_type>(
+	using member_type = member_pointer<ptr>::member_type;
+	return typename atuple_type_from_ptrs<ptr, ptrs...>::type(
 		member_type{},
-		make_atuple_from_struct<StructType, params...>()
+		atuple_from_struct<ptrs...>()
 	);
 }
 
