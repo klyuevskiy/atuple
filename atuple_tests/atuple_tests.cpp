@@ -206,17 +206,17 @@ namespace atupletests
 
 			MyStruct my{ "Ilya", 22 };
 
-			auto t1 = make_atuple_from_struct<MyStruct, &MyStruct::name, &MyStruct::age>(my);
+			auto t1 = atuple_from_struct<&MyStruct::name, &MyStruct::age>(my);
 			Assert::IsTrue(t1.get<&MyStruct::name>() == my.name);
 			Assert::IsTrue(t1.get<&MyStruct::age>() == my.age);
 
-			auto t2 = make_atuple_from_struct<MyStruct, &MyStruct::name>(my);
+			auto t2 = atuple_from_struct<&MyStruct::name>(my);
 			Assert::IsTrue(t1.get<&MyStruct::name>() == my.name);
 
-			auto t3 = make_atuple_from_struct<MyStruct, &MyStruct::age>(my);
-			Assert::IsTrue(t1.get<&MyStruct::age>() == my.age);
-
-			auto t4 = make_atuple_from_struct<MyStruct>(my);
+			auto t3 = atuple_from_struct<&MyStruct::age>(my);
+			Assert::IsTrue(t3.get<&MyStruct::age>() == my.age);
+			
+			auto t4 = atuple_from_struct(my);
 			Assert::IsTrue(atuple<>() == t4);
 		}
 
@@ -231,24 +231,24 @@ namespace atupletests
 			MyStruct my{ "Ilya", 22 };
 			MyStruct to_move = my;
 
-			auto t1 = make_atuple_from_struct<MyStruct, &MyStruct::name, &MyStruct::age>(
+			auto t1 = atuple_from_struct<&MyStruct::name, &MyStruct::age>(
 				std::move(to_move));
 			Assert::IsTrue(t1.get<&MyStruct::name>() == my.name);
 			Assert::IsTrue(t1.get<&MyStruct::age>() == my.age);
 			Assert::IsTrue(to_move.name == ""); /* moved */
 
 			to_move = my;
-			auto t2 = make_atuple_from_struct<MyStruct, &MyStruct::name>(std::move(to_move));
+			auto t2 = atuple_from_struct<&MyStruct::name>(std::move(to_move));
 			Assert::IsTrue(t1.get<&MyStruct::name>() == my.name);
 			Assert::IsTrue(to_move.name == ""); /* moved */
 
 			to_move = my;
-			auto t3 = make_atuple_from_struct<MyStruct, &MyStruct::age>(std::move(to_move));
-			Assert::IsTrue(t1.get<&MyStruct::age>() == my.age);
+			auto t3 = atuple_from_struct<&MyStruct::age>(std::move(to_move));
+			Assert::IsTrue(t3.get<&MyStruct::age>() == my.age);
 			Assert::IsFalse(to_move.name == ""); /* not moved */
 
 			to_move = my;
-			auto t4 = make_atuple_from_struct<MyStruct>(std::move(to_move));
+			auto t4 = atuple_from_struct(std::move(to_move));
 			Assert::IsTrue(atuple<>() == t4);
 			Assert::IsFalse(to_move.name == ""); /* not moved */
 		}
@@ -264,17 +264,17 @@ namespace atupletests
 			std::string empty_s{};
 			int empty_int{};
 
-			auto t1 = make_atuple_from_struct<MyStruct, &MyStruct::name, &MyStruct::age>();
+			auto t1 = atuple_from_struct< &MyStruct::name, &MyStruct::age>();
 			Assert::IsTrue(t1.get<&MyStruct::name>() == empty_s);
 			Assert::IsTrue(t1.get<&MyStruct::age>() == empty_int);
 
-			auto t2 = make_atuple_from_struct<MyStruct, &MyStruct::name>();
+			auto t2 = atuple_from_struct< &MyStruct::name>();
 			Assert::IsTrue(t1.get<&MyStruct::name>() == empty_s);
 
-			auto t3 = make_atuple_from_struct<MyStruct, &MyStruct::age>();
-			Assert::IsTrue(t1.get<&MyStruct::age>() == empty_int);
+			auto t3 = atuple_from_struct< &MyStruct::age>();
+			Assert::IsTrue(t3.get<&MyStruct::age>() == empty_int);
 
-			auto t4 = make_atuple_from_struct<MyStruct>();
+			auto t4 = atuple_from_struct();
 			Assert::IsTrue(atuple<>() == t4);
 		}
 
@@ -289,8 +289,8 @@ namespace atupletests
 			MyStruct my1{ "Ilya", 22 };
 			MyStruct my2{ "Ilya", 21 };
 
-			auto t1 = make_atuple_from_struct<MyStruct, &MyStruct::name, &MyStruct::age>(my1);
-			auto t2 = make_atuple_from_struct<MyStruct, &MyStruct::name, &MyStruct::age>(my2);
+			auto t1 = atuple_from_struct< &MyStruct::name, &MyStruct::age>(my1);
+			auto t2 = atuple_from_struct< &MyStruct::name, &MyStruct::age>(my2);
 
 			Assert::IsTrue(!atuple_less<&MyStruct::name, &MyStruct::age>(t1, t2));
 			Assert::IsTrue(atuple_greater<&MyStruct::name, &MyStruct::age>(t1, t2));

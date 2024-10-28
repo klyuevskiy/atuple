@@ -4,22 +4,22 @@
 #include "atuple.hpp"
 
 template <typename KeyT, typename ValueT, typename ...Types>
-void __print_atuple(atuple<KeyT, ValueT, Types...> const& t)
+void __print_atuple(auto const& t)
 {
 	std::cout << typeid(KeyT).name() << " : " << t. template get<KeyT>() << std::endl;
-	__print_atuple(t.getTail());
+	__print_atuple<Types...>(t);
 }
 
-void __print_atuple(atuple<> const &t)
+void __print_atuple(auto const &t)
 {
 
 }
 
-template <typename Tup>
-void print_atuple(Tup const& t)
+template <typename ...Types>
+void print_atuple(atuple<Types...> const& t)
 {
-	std::cout << typeid(Tup).name() << ":" << std::endl;
-	__print_atuple(t);
+	std::cout << typeid(decltype(t)).name() << ":" << std::endl;
+	__print_atuple<Types...>(t);
 }
 
 struct MyStruct
@@ -75,20 +75,12 @@ int main()
 		auto operator <=>(MyStruct const& other) const = default;
 	};
 
-	MyStruct my1{ "Ilya", 22 };
-	MyStruct my2{ "Ilya", 21 };
+	//auto cmp_res = atuple_comparator<
+	//	atuple_weak_ordering_policy,
+	//	member_pointer<&MyStruct::name>,
+	//	member_pointer<&MyStruct::age>
+	//>::do_compare(t1, t2);
 
-	auto t1 = make_atuple_from_struct<MyStruct, &MyStruct::name, &MyStruct::age>(my1);
-	auto t2 = make_atuple_from_struct<MyStruct, &MyStruct::name, &MyStruct::age>(my2);
-
-	std::cout << atuple_greater<&MyStruct::name, &MyStruct::age>(t1, t2) << std::endl;
-
-	auto cmp_res = atuple_comparator<
-		atuple_weak_ordering_policy,
-		member_pointer<&MyStruct::name>,
-		member_pointer<&MyStruct::age>
-	>::do_compare(t1, t2);
-
-	if (cmp_res == std::partial_ordering::greater)
-		std::cout << "greater" << std::endl;
+	//if (cmp_res == std::partial_ordering::greater)
+	//	std::cout << "greater" << std::endl;
 }
