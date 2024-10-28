@@ -317,10 +317,10 @@ private:
 	};
 
 	using key_type = member_pointer<ptr>;
-	using value_type = key_type::member_type;
-	using tail = atuple_type_from_ptrs<ptrs...>::type;
+	using value_type = typename key_type::member_type;
+	using tail = typename atuple_type_from_ptrs<ptrs...>::type;
 public:
-	using type = atuple_add_pair<key_type, value_type, tail>::type;
+	using type = typename atuple_add_pair<key_type, value_type, tail>::type;
 };
 
 template <>
@@ -400,9 +400,8 @@ template<auto ptr, auto ...ptrs>
 requires is_pointers_of_single_struct<ptr, ptrs...>::value
 constexpr typename atuple_type_from_ptrs<ptr, ptrs...>::type atuple_from_struct()
 {
-	using member_type = member_pointer<ptr>::member_type;
 	return typename atuple_type_from_ptrs<ptr, ptrs...>::type(
-		member_type{},
+		typename member_pointer<ptr>::member_type{},
 		atuple_from_struct<ptrs...>()
 	);
 }
