@@ -19,19 +19,90 @@ public:
 	using struct_type = decltype(__struct_type(member_ptr));
 };
 
+/* one element of atuple - mapping pair: Key -> Value */
+template <typename KeyT, typename ValueT>
+class atuple_element
+{
+	ValueT value;
+
+public:
+	constexpr atuple_element() noexcept(std::is_nothrow_default_constructible_v<ValueT>) = default;
+	~atuple_element() noexcept = default;
+
+	template <typename T>
+	constexpr atuple_element(T&& value)
+		noexcept(noexcept(ValueT(std::forward<T>(value))))
+		: value(std::forward<T>(value))
+	{
+
+	}
+
+	template <typename T>
+	constexpr atuple_element(atuple_element<KeyT, T> const& other)
+		noexcept(std::is_nothrow_copy_constructible_v<ValueT>)
+		: value(other.value)
+	{
+
+	}
+
+	template <typename T>
+	constexpr atuple_element(atuple_element<KeyT, T>&& other)
+		noexcept(std::is_nothrow_move_constructible_v<ValueT>)
+		: value(std::move(other.value))
+	{
+
+	}
+
+	template <typename T>
+	constexpr atuple_element<KeyT, ValueT> operator=(atuple_element<KeyT, T> const& other)
+		noexcept(std::is_nothrow_copy_constructible_v<atuple_element<KeyT, ValueT>>&& this->swap(other))
+	{
+		atuple_element<KeyT, ValueT> tmp(other);
+		this->swap(tmp);
+		return *this;
+	}
+
+	template <typename T>
+	constexpr atuple_element<KeyT, ValueT> operator=(atuple_element<KeyT, T>&& other)
+		noexcept(std::is_nothrow_move_constructible_v<atuple_element<KeyT, ValueT>> && this->swap(other))
+	{
+		atuple_element<KeyT, ValueT> tmp(std::move(other));
+		this->swap(tmp);
+		return *this;
+	}
+
+	constexpr ValueT& get() noexcept
+	{
+		return value;
+	}
+
+	constexpr ValueT const& get() const noexcept
+	{
+		return value;
+	}
+
+	template <typename T>
+	constexpr void swap(atuple_element<KeyT, T> &other) noexcept(swap(value, other.value))
+	{
+		using std::swap;
+		swap(value, other.value);
+	}
+};
+
 template <typename ...Types>
 class atuple;
 
+/* recurive atuple with empty base optimization */
 template <typename HeadKeyT, typename HeadValueT, typename ...Tail>
-class atuple<HeadKeyT, HeadValueT, Tail...>
+class atuple<HeadKeyT, HeadValueT, Tail...> : private atuple_element<HeadKeyT, HeadValueT>, private atuple<Tail...>
 {
 private:
-	
+
+	using head_type = atuple_element<HeadKeyT, HeadValueT>;
+	using tail_type = atuple<Tail...>;
+
 	template <typename ...Types>
 	friend class atuple;
-
-	HeadValueT head;
-	atuple<Tail...> tail;
 
 	/* check for unique keys */
 
@@ -75,36 +146,36 @@ private:
 
 	constexpr HeadValueT& getHead() noexcept
 	{
-		return head;
+		return static_cast<head_type*>(this)->get();
 	}
 
 	constexpr HeadValueT const& getHead() const noexcept
 	{
-		return head;
+		return static_cast<const head_type*>(this)->get();
 	}
 
-	constexpr atuple<Tail...>& getTail() noexcept
+	constexpr tail_type& getTail() noexcept
 	{
-		return tail;
+		return *this;
 	}
 
-	constexpr atuple<Tail...> const& getTail() const noexcept
+	constexpr tail_type const& getTail() const noexcept
 	{
-		return tail;
+		return *this;
 	}
 
 public:
 
 	constexpr atuple()
-		: head(HeadValueT{}), tail(atuple<Tail...>{})
+		: head_type{}, tail_type{}
 	{
-		
+
 	}
 
 	template <typename ValueT, typename TailTuple>
 	constexpr atuple(ValueT&& head, TailTuple&& tail)
-		: head(std::forward<ValueT>(head)),
-		  tail(std::forward<TailTuple>(tail))
+		: head_type(std::forward<ValueT>(head)),
+		  tail_type(std::forward<TailTuple>(tail))
 	{
 
 	}
@@ -147,14 +218,14 @@ public:
 
 	template<typename Atuple>
 	constexpr atuple(Atuple const& other)
-		: head(other. template get<HeadKeyT>()), tail(other)
+		: head_type(other. template get<HeadKeyT>()), tail_type(other)
 	{
 
 	}
 
 	template<typename Atuple>
 	constexpr atuple(Atuple&& other)
-		: head(std::move(other. template get<HeadKeyT>())), tail(std::move(other))
+		: head_type(std::move(other. template get<HeadKeyT>())), tail_type(std::move(other))
 	{
 
 	}
@@ -166,7 +237,7 @@ private:
 	constexpr void __swap(Tup& t) noexcept
 	{
 		using std::swap;
-		swap(head, t. template get<HeadKeyT>());
+		swap(this->getHead(), t.template get<HeadKeyT>());
 		if constexpr (sizeof...(Tail) > 0)
 			this->getTail().__swap(t);
 	}

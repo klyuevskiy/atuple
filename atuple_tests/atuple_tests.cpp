@@ -357,5 +357,11 @@ namespace atupletests
 			Assert::IsTrue("12.3" == t3.get<float>());
 			Assert::IsTrue("" == t2.get<float>());
 		}
+
+		TEST_METHOD(EmptyBaseOptimization)
+		{
+			atuple<int, int> a;
+			Assert::IsTrue(sizeof(a) == sizeof(int));
+		}
 	};
 }
